@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Experiments</title>
+<style>
+  :root{
+    --bg:#070b11;
+    --panel:#0e151f;
+    --panel-2:#121b27;
+    --ink:#e6edf5;
+    --muted:#7c8ba0;
+    --accent:#7cff6b;
+    --line:#223144;
+    --grid:#1b2735;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);min-height:100%;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:48px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:28px}
+  h1{font-size:24px;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  ul.cards{list-style:none;display:flex;flex-direction:column;gap:12px}
+  a.card{display:block;text-decoration:none;color:inherit;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;transition:.15s}
+  a.card:hover{border-color:#34465c;background:var(--panel-2);transform:translateY(-1px)}
+  a.card .t{font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+  a.card .t .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 8px var(--accent);flex:none}
+  a.card .d{color:var(--muted);font-size:13px;margin-top:7px;line-height:1.5}
+  a.card .path{color:#4dd2ff;font-size:11.5px;margin-top:10px;
+    font-family:ui-monospace,monospace;letter-spacing:.02em}
+  footer{color:var(--muted);font-size:12px;margin-top:34px;
+    font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Public Experiments</h1>
+    <p class="sub">interactive demos · physics · visualizations</p>
+  </header>
+
+  <ul class="cards">
+    <li>
+      <a class="card" href="interferencelab/">
+        <div class="t"><span class="dot"></span>Interference Lab</div>
+        <div class="d">Wave superposition, two-source fields, and the single-photon double-slit experiment — three interactive canvases.</div>
+        <div class="path">interferencelab/</div>
+      </a>
+    </li>
+    <!-- Add new projects by copying a <li> block above and updating the href, title, and description. -->
+  </ul>
+
+  <footer>More to come.</footer>
+</div>
+</body>
+</html>
