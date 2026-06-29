@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interference Lab</title>
+<style>
+  :root{
+    --bg:#070b11;
+    --panel:#0e151f;
+    --panel-2:#121b27;
+    --grid:#1b2735;
+    --ink:#e6edf5;
+    --muted:#7c8ba0;
+    --waveA:#4dd2ff;
+    --waveB:#ffab4d;
+    --sum:#7cff6b;
+    --hot:#ff5d6c;
+    --line:#223144;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px}
+  h1{font-size:23px;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .tabs{display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap}
+  .tab{background:var(--panel);color:var(--muted);border:1px solid var(--line);
+    padding:9px 15px;font-size:13px;border-radius:8px;cursor:pointer;
+    font-family:ui-monospace,monospace;letter-spacing:.02em;transition:.15s}
+  .tab:hover{color:var(--ink);border-color:#34465c}
+  .tab.on{background:var(--panel-2);color:var(--sum);border-color:#2f4a3a}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin-bottom:16px}
+  canvas{width:100%;display:block;border-radius:8px;background:#060a0f;cursor:crosshair}
+  .ctrls{display:flex;flex-wrap:wrap;gap:18px 26px;align-items:center;
+    margin-top:16px;padding-top:16px;border-top:1px solid var(--grid)}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:170px}
+  .field label{font-size:11px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.09em;font-family:ui-monospace,monospace}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;
+    background:var(--grid);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;
+    height:16px;border-radius:50%;background:var(--sum);cursor:pointer;
+    border:2px solid #0e151f;box-shadow:0 0 0 1px var(--sum)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;
+    background:var(--sum);cursor:pointer;border:2px solid #0e151f}
+  button.act{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+    padding:8px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;
+    font-family:ui-monospace,monospace;transition:.15s}
+  button.act:hover{border-color:#34465c;background:#172234}
+  button.act.live{color:var(--sum);border-color:#2f4a3a}
+  .reads{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .read{background:var(--panel-2);border:1px solid var(--grid);border-radius:8px;
+    padding:9px 13px;min-width:96px}
+  .read .k{font-size:10px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;font-family:ui-monospace,monospace}
+  .read .v{font-size:18px;font-weight:600;margin-top:3px;font-family:ui-monospace,monospace}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+    font-family:ui-monospace,monospace;margin-top:12px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;
+    margin-right:6px;vertical-align:middle}
+  .note{color:var(--muted);font-size:13px;line-height:1.55;margin-top:14px;
+    border-left:2px solid var(--grid);padding-left:14px}
+  .state{font-family:ui-monospace,monospace;font-weight:600}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Interference Lab</h1>
+    <span class="sub">superposition · two-source field · single-photon double slit</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-m="0">01 — superposition</button>
+    <button class="tab" data-m="1">02 — two sources</button>
+    <button class="tab" data-m="2">03 — photons</button>
+  </div>
+
+  <!-- ============ MODE 0: SUPERPOSITION ============ -->
+  <section id="m0">
+    <div class="stage">
+      <canvas id="c0" width="900" height="380"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--waveA)"></i>wave A</span>
+        <span><i style="background:var(--waveB)"></i>wave B</span>
+        <span><i style="background:var(--sum)"></i>A + B (resultant)</span>
+      </div>
+      <div class="ctrls">
+        <div class="field" style="flex:1;min-width:240px">
+          <label>phase difference  Δφ</label>
+          <input id="phase" type="range" min="0" max="360" value="0" step="1">
+        </div>
+        <div class="row">
+          <button class="act" data-set="0">Δφ = 0 · constructive</button>
+          <button class="act" data-set="180">Δφ = π · destructive</button>
+          <button class="act" data-set="90">Δφ = π/2</button>
+        </div>
+      </div>
+      <div class="reads">
+        <div class="read"><div class="k">Δφ</div><div class="v" id="r-deg">0°</div></div>
+        <div class="read"><div class="k">path diff</div><div class="v" id="r-path">0.00 λ</div></div>
+        <div class="read"><div class="k">amplitude</div><div class="v" id="r-amp">2.00×</div></div>
+        <div class="read"><div class="k">intensity</div><div class="v" id="r-int">4.00×</div></div>
+        <div class="read"><div class="k">state</div><div class="v state" id="r-state" style="color:var(--sum)">CONSTRUCTIVE</div></div>
+      </div>
+      <p class="note">Two equal traveling waves are added point by point. Resultant amplitude = 2·cos(Δφ/2); intensity ∝ amplitude², so it ranges from 4× a single wave (in phase) down to 0 (Δφ = π). Path difference is just Δφ expressed in wavelengths.</p>
+    </div>
+  </section>
+
+  <!-- ============ MODE 1: TWO SOURCES ============ -->
+  <section id="m1" class="hidden">
+    <div class="stage">
+      <canvas id="c1" width="900" height="500"></canvas>
+      <div class="ctrls">
+        <div class="field">
+          <label>source separation</label>
+          <input id="sep" type="range" min="30" max="240" value="120" step="2">
+        </div>
+        <div class="field">
+          <label>wavelength</label>
+          <input id="wl" type="range" min="14" max="60" value="30" step="1">
+        </div>
+        <div class="row">
+          <button class="act live" id="env-toggle">show standing pattern</button>
+        </div>
+      </div>
+      <p class="note" id="m1-note">Live wavefronts from two in-phase sources. Bright radial lines where crests meet crests are <b style="color:var(--sum)">constructive</b> (antinodal); the dark channels between them are <b style="color:var(--hot)">destructive</b> (nodal) lines where crest always meets trough. Toggle the standing pattern to freeze the time-averaged intensity and see the fringes directly.</p>
+    </div>
+  </section>
+
+  <!-- ============ MODE 2: PHOTONS ============ -->
+  <section id="m2" class="hidden">
+    <div class="stage">
+      <canvas id="c2" width="900" height="460"></canvas>
+      <div class="ctrls">
+        <div class="row">
+          <button class="act" id="fire1">fire 1 photon</button>
+          <button class="act" id="fire200">fire 200</button>
+          <button class="act" id="auto">auto-fire</button>
+          <button class="act" id="reset">reset</button>
+          <button class="act" id="block">block left slit: OFF</button>
+        </div>
+        <div class="read"><div class="k">detected</div><div class="v" id="count">0</div></div>
+      </div>
+      <p class="note">Each photon is fired one at a time and lands at a random point drawn from the diffraction probability distribution. No single photon shows a pattern, but the histogram of many independent detections converges to the interference fringes. Block one slit and the fringes vanish, leaving the broad single-slit envelope, because there is now only one path and nothing to interfere with.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- tab switching ---------- */
+const sections=[document.getElementById('m0'),document.getElementById('m1'),document.getElementById('m2')];
+let mode=0;
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    mode=+t.dataset.m;
+    sections.forEach((s,i)=>s.classList.toggle('hidden',i!==mode));
+  };
+});
+
+/* ===================================================================
+   MODE 0 — superposition
+   =================================================================== */
+const c0=document.getElementById('c0'), x0=c0.getContext('2d');
+const phaseEl=document.getElementById('phase');
+let t0=0;
+document.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{phaseEl.value=b.dataset.set;});
+
+function drawSuper(){
+  const W=c0.width,H=c0.height;
+  x0.clearRect(0,0,W,H);
+  // grid
+  x0.strokeStyle='#13202e';x0.lineWidth=1;
+  for(let gy=0;gy<=4;gy++){const y=gy*H/4;x0.beginPath();x0.moveTo(0,y);x0.lineTo(W,y);x0.stroke();}
+  const dphi=(+phaseEl.value)*Math.PI/180;
+  const cycles=4, amp=70;
+  const midA=H*0.22, midB=H*0.50, midS=H*0.80;
+  // zero lines
+  x0.strokeStyle='#1c2c3d';
+  [midA,midB,midS].forEach(m=>{x0.beginPath();x0.moveTo(0,m);x0.lineTo(W,m);x0.stroke();});
+  const trace=(midY,fn,color,w)=>{
+    x0.strokeStyle=color;x0.lineWidth=w;x0.beginPath();
+    for(let px=0;px<=W;px++){
+      const th=(px/W)*cycles*2*Math.PI;
+      const y=midY-fn(th)*amp;
+      px?x0.lineTo(px,y):x0.moveTo(px,y);
+    }
+    x0.stroke();
+  };
+  const a=th=>Math.sin(th-t0);
+  const b=th=>Math.sin(th-t0+dphi);
+  trace(midA,a,'#4dd2ff',1.6);
+  trace(midB,b,'#ffab4d',1.6);
+  // glow on resultant
+  x0.shadowColor='rgba(124,255,107,.55)';x0.shadowBlur=10;
+  trace(midS,th=>a(th)+b(th),'#7cff6b',2.4);
+  x0.shadowBlur=0;
+  // labels
+  x0.fillStyle='#5d6f84';x0.font='12px ui-monospace,monospace';
+  x0.fillText('A',10,midA-amp-6);
+  x0.fillText('B',10,midB-amp-6);
+  x0.fillText('A + B',10,midS-amp-6);
+
+  // readouts
+  const amplitude=2*Math.cos(dphi/2);
+  const intensity=amplitude*amplitude;
+  document.getElementById('r-deg').textContent=Math.round(+phaseEl.value)+'°';
+  document.getElementById('r-path').textContent=((+phaseEl.value/360)).toFixed(2)+' λ';
+  document.getElementById('r-amp').textContent=Math.abs(amplitude).toFixed(2)+'×';
+  document.getElementById('r-int').textContent=intensity.toFixed(2)+'×';
+  const st=document.getElementById('r-state');
+  const d=+phaseEl.value;
+  if(d<25||d>335){st.textContent='CONSTRUCTIVE';st.style.color='#7cff6b';}
+  else if(d>155&&d<205){st.textContent='DESTRUCTIVE';st.style.color='#ff5d6c';}
+  else{st.textContent='PARTIAL';st.style.color='#ffab4d';}
+}
+
+/* ===================================================================
+   MODE 1 — two coherent sources (live field + standing pattern)
+   =================================================================== */
+const c1=document.getElementById('c1'), x1=c1.getContext('2d');
+let showEnv=false, t1=0;
+const sepEl=document.getElementById('sep'), wlEl=document.getElementById('wl');
+const envBtn=document.getElementById('env-toggle');
+envBtn.onclick=()=>{showEnv=!showEnv;envBtn.textContent=showEnv?'show live wavefronts':'show standing pattern';envBtn.classList.toggle('live',!showEnv);};
+
+const RS=2; // render scale (1 physics px : RS screen px) for speed
+let buf1=null;
+function drawTwoSource(){
+  const W=c1.width,H=c1.height;
+  const gw=Math.floor(W/RS), gh=Math.floor(H/RS);
+  if(!buf1||buf1.width!==gw) buf1=x1.createImageData(gw,gh);
+  const data=buf1.data;
+  const wl=+wlEl.value, k=2*Math.PI/wl, w=0.12;
+  const sep=+sepEl.value;
+  const s1x=W*0.5, s1y=H*0.5-sep/2;
+  const s2x=W*0.5, s2y=H*0.5+sep/2;
+  let i=0;
+  for(let gy=0;gy<gh;gy++){
+    const py=gy*RS;
+    for(let gx=0;gx<gw;gx++){
+      const px=gx*RS;
+      const r1=Math.hypot(px-s1x,py-s1y);
+      const r2=Math.hypot(px-s2x,py-s2y);
+      let r,g,b;
+      if(showEnv){
+        // time-averaged amplitude ∝ |cos(k·(r1−r2)/2)|, with 1/sqrt(r) falloff
+        const env=Math.abs(Math.cos(k*(r1-r2)/2));
+        const fall=1/Math.sqrt(1+(r1+r2)*0.012);
+        const v=env*fall;
+        r=v*60; g=40+v*215; b=70+v*90;          // bright green ridges
+        const node=1-env;                         // emphasise nodal (dark red) lines
+        r+=node*node*node*120; b+=node*node*node*30;
+      }else{
+        const field=Math.sin(k*r1-w*t1)/Math.sqrt(1+r1*0.02)
+                   +Math.sin(k*r2-w*t1)/Math.sqrt(1+r2*0.02);
+        const v=field*0.5;                        // ~[-1,1]
+        const pos=Math.max(0,v), neg=Math.max(0,-v);
+        r=neg*70; g=20+pos*200; b=30+pos*120+neg*60;
+      }
+      data[i++]=r;data[i++]=g;data[i++]=b;data[i++]=255;
+    }
+  }
+  // blit upscaled
+  const off=document.createElement('canvas');off.width=gw;off.height=gh;
+  off.getContext('2d').putImageData(buf1,0,0);
+  x1.imageSmoothingEnabled=true;
+  x1.drawImage(off,0,0,W,H);
+  // draw sources
+  [[s1x,s1y],[s2x,s2y]].forEach(([sx,sy])=>{
+    x1.beginPath();x1.arc(sx,sy,5,0,7);x1.fillStyle='#fff';x1.fill();
+    x1.beginPath();x1.arc(sx,sy,9,0,7);x1.strokeStyle='rgba(255,255,255,.4)';x1.stroke();
+  });
+}
+
+/* ===================================================================
+   MODE 2 — single-photon double slit
+   =================================================================== */
+const c2=document.getElementById('c2'), x2=c2.getContext('2d');
+const countEl=document.getElementById('count');
+let photons=[], hist=new Array(180).fill(0), autoOn=false, blocked=false, count=0;
+const blockBtn=document.getElementById('block');
+
+// probability profile across the screen (vertical axis), normalised
+function profile(u){            // u in [-1,1]
+  const slit=8.5;               // single-slit envelope sharpness
+  const fr=18;                  // fringe frequency
+  const env=sinc(slit*u); const envI=env*env;
+  if(blocked) return envI;      // one slit: just the broad envelope
+  const fringe=Math.cos(fr*u); // two-slit cos² fringes
+  return envI*fringe*fringe;
+}
+function sinc(z){return z===0?1:Math.sin(z)/z;}
+// precompute max for rejection sampling
+let pmax=1;(()=>{let m=0;for(let n=0;n<=400;n++){const u=-1+2*n/400;m=Math.max(m,Math.max(profileRaw(u,false),profileRaw(u,true)));}pmax=m;})();
+function profileRaw(u,blk){const env=sinc(8.5*u);const e=env*env;return blk?e:e*Math.cos(18*u)**2;}
+
+function samplePhoton(){
+  for(let tries=0;tries<200;tries++){
+    const u=Math.random()*2-1;
+    const p=profile(u);
+    if(Math.random()*pmax<=p) return u;
+  }
+  return Math.random()*2-1;
+}
+function fire(n){
+  for(let j=0;j<n;j++){
+    const u=samplePhoton();
+    const W=c2.width,H=c2.height;
+    const screenX=W-150;
+    const y=H/2 - u*(H/2-30);
+    photons.push({x:screenX+(Math.random()*30),y, age:0});
+    const bin=Math.min(hist.length-1,Math.max(0,Math.floor((u+1)/2*hist.length)));
+    hist[bin]++; count++;
+  }
+  countEl.textContent=count;
+}
+document.getElementById('fire1').onclick=()=>fire(1);
+document.getElementById('fire200').onclick=()=>fire(200);
+document.getElementById('reset').onclick=()=>{photons=[];hist.fill(0);count=0;countEl.textContent=0;};
+const autoBtn=document.getElementById('auto');
+autoBtn.onclick=()=>{autoOn=!autoOn;autoBtn.classList.toggle('live',autoOn);autoBtn.textContent=autoOn?'stop':'auto-fire';};
+blockBtn.onclick=()=>{blocked=!blocked;blockBtn.textContent='block left slit: '+(blocked?'ON':'OFF');blockBtn.classList.toggle('live',blocked);photons=[];hist.fill(0);count=0;countEl.textContent=0;};
+
+function drawPhotons(){
+  const W=c2.width,H=c2.height;
+  x2.fillStyle='#060a0f';x2.fillRect(0,0,W,H);
+  const srcX=70, slitX=W*0.30, screenX=W-150;
+  // optical bench geometry
+  x2.strokeStyle='#1c2c3d';x2.lineWidth=1;
+  // barrier with slits
+  const cy=H/2, gap=46, sw=7;
+  x2.fillStyle='#16212f';
+  if(blocked){
+    x2.fillRect(slitX-sw/2,0,sw,cy-gap/2+0); // left blocked: fill upper fully through one slit region
+    x2.fillRect(slitX-sw/2,0,sw,cy+gap/2);
+    x2.fillRect(slitX-sw/2,cy+gap/2+10,sw,H-(cy+gap/2+10));
+  }else{
+    x2.fillRect(slitX-sw/2,0,sw,cy-gap/2);
+    x2.fillRect(slitX-sw/2,cy-gap/2+10,sw,gap-10);
+    x2.fillRect(slitX-sw/2,cy+gap/2+10,sw,H-(cy+gap/2+10));
+  }
+  // source
+  x2.beginPath();x2.arc(srcX,cy,6,0,7);x2.fillStyle='#ffab4d';x2.fill();
+  x2.fillStyle='#5d6f84';x2.font='11px ui-monospace,monospace';
+  x2.fillText('source',srcX-18,cy+26);
+  x2.fillText(blocked?'one slit':'two slits',slitX-22,18);
+  x2.fillText('screen',screenX-6,18);
+  // detection screen line
+  x2.strokeStyle='#26384c';x2.beginPath();x2.moveTo(screenX,20);x2.lineTo(screenX,H-20);x2.stroke();
+
+  // histogram curve (right of screen)
+  const hx0=screenX+8, hw=120;
+  x2.beginPath();
+  const maxH=Math.max(1,...hist);
+  for(let b=0;b<hist.length;b++){
+    const y=H/2 - ((b/(hist.length-1))*2-1)*(H/2-30);
+    const v=hist[b]/maxH;
+    const xx=hx0+v*hw;
+    b?x2.lineTo(xx,y):x2.moveTo(xx,y);
+  }
+  x2.strokeStyle='#7cff6b';x2.lineWidth=1.6;x2.stroke();
+
+  // accumulated photon hits
+  for(const p of photons){
+    x2.fillStyle='rgba(124,255,107,.85)';
+    x2.fillRect(p.x,p.y,1.6,1.6);
+  }
+  // faint beam hints for the most recent few
+  const recent=photons.slice(-6);
+  x2.strokeStyle='rgba(255,171,77,.12)';x2.lineWidth=1;
+  for(const p of recent){
+    x2.beginPath();x2.moveTo(srcX,cy);x2.lineTo(slitX,cy+(p.y-cy)*0.35);x2.lineTo(p.x,p.y);x2.stroke();
+  }
+}
+
+/* ---------- main loop ---------- */
+let frame=0;
+function loop(){
+  frame++;
+  if(!reduceMotion){t0+=0.06;t1+=1.6;}
+  if(mode===0) drawSuper();
+  else if(mode===1) drawTwoSource();
+  else if(mode===2){ if(autoOn&&frame%2===0) fire(3); drawPhotons(); }
+  requestAnimationFrame(loop);
+}
+drawSuper();
+loop();
+</script>
+</body>
+</html>
