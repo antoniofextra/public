@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interference Lab</title>
+<style>
+    :root {
+        --bg: #000510;
+        --panel-bg: #001122;
+        --border: #334466;
+        --text: #d0d0d0;
+        --green: #00ff00;
+        --green-dim: rgba(0, 255, 0, 0.2);
+        --cyan: #00ffff;
+        --cyan-dim: rgba(0, 255, 255, 0.2);
+        --amber: #ffaa00;
+        --amber-dim: rgba(255, 170, 0, 0.2);
+        --red: #ff3333;
+        --font: 'Courier New', Courier, monospace;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        line-height: 1.4;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow-x: hidden;
+    }
+
+    header {
+        border-bottom: 2px solid var(--border);
+        padding: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        background-color: var(--panel-bg);
+    }
+
+    button {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 8px 12px;
+        font-family: var(--font);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    button:hover, button:focus {
+        border-color: var(--cyan);
+        outline: none;
+    }
+
+    button.active {
+        background: var(--border);
+        color: var(--green);
+        border-color: var(--green);
+    }
+
+    .tab-content {
+        display: none;
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+    }
+
+    .tab-content.active {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .control-panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        padding: 15px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .quick-btns {
+        display: flex;
+        gap: 5px;
+        margin-top: 5px;
+    }
+
+    .quick-btns button {
+        flex: 1;
+        padding: 4px;
+        font-size: 0.9em;
+    }
+
+    canvas {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        max-width: 100%;
+        width: 100%;
+        image-rendering: pixelated;
+    }
+
+    input[type=range] {
+        width: 100%;
+        accent-color: var(--cyan);
+    }
+
+    input[type=number] {
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 4px;
+        font-family: var(--font);
+        width: 100px;
+    }
+
+    .readout {
+        color: var(--green);
+        font-weight: bold;
+    }
+
+    .cyan-text { color: var(--cyan); }
+    .amber-text { color: var(--amber); }
+    .green-text { color: var(--green); }
+
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+    }
+
+    .card {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        padding: 15px;
+    }
+
+    .card-title {
+        font-weight: bold;
+        color: var(--cyan);
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 5px;
+    }
+
+    .formula {
+        color: var(--amber);
+        font-size: 0.9em;
+        margin-bottom: 10px;
+    }
+
+    .result {
+        font-size: 1.2em;
+        color: var(--green);
+        margin-bottom: 5px;
+    }
+
+    .plugged {
+        font-size: 0.8em;
+        color: #888;
+    }
+
+    .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: bold;
+        color: #000;
+    }
+
+    .pill.aliased { background: var(--red); }
+    .pill.marginal { background: var(--amber); }
+    .pill.resolved { background: var(--green); }
+
+    .tooltip-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .tooltip-trigger {
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        cursor: pointer;
+        color: var(--cyan);
+    }
+
+    .tooltip-content {
+        display: none;
+        position: absolute;
+        bottom: 120%;
+        left: 0;
+        background: var(--bg);
+        border: 1px solid var(--cyan);
+        padding: 10px;
+        width: 250px;
+        z-index: 10;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    }
+
+    .tooltip-content.active {
+        display: block;
+    }
+
+    .warning {
+        border-left: 4px solid var(--red);
+        background: rgba(255, 0, 0, 0.1);
+        padding: 10px;
+        margin-top: 15px;
+        display: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .motion-warning {
+            display: block;
+            color: var(--amber);
+            margin-bottom: 10px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header id="tabs">
+    <button data-target="page1" class="active" aria-label="Page 1: Superposition">1: Superposition</button>
+    <button data-target="page2" aria-label="Page 2: 2D Coherent">2: 2D Coherent</button>
+    <button data-target="page3" aria-label="Page 3: Single Photon">3: Single Photon</button>
+    <button data-target="page4" aria-label="Page 4: Bench Predictor">4: Bench Predictor</button>
+</header>
+
+<main id="page1" class="tab-content active">
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="p1-phi">Phase Difference (Delta-phi): <span id="p1-phi-out" class="readout">0</span> deg</label>
+            <input type="range" id="p1-phi" min="0" max="360" value="0">
+            <div class="quick-btns">
+                <button onclick="document.getElementById('p1-phi').value=0; updateP1();">0 deg</button>
+                <button onclick="document.getElementById('p1-phi').value=90; updateP1();">90 deg</button>
+                <button onclick="document.getElementById('p1-phi').value=180; updateP1();">180 deg</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div>Path Diff: <span id="p1-path" class="readout">0.00</span> wavelengths</div>
+            <div>Resultant Amp: <span id="p1-amp" class="readout">2.00</span></div>
+            <div>Intensity (A^2): <span id="p1-int" class="readout">4.00</span>x</div>
+            <div>State: <span id="p1-state" class="readout">Constructive</span></div>
+        </div>
+    </div>
+    <div style="flex: 1; min-height: 300px;">
+        <canvas id="canvas1"></canvas>
+    </div>
+    <div style="font-size: 0.9em; text-align: center;">
+        <span class="cyan-text">Wave A</span> + <span class="amber-text">Wave B</span> = <span class="green-text">Sum</span>
+    </div>
+</main>
+
+<main id="page2" class="tab-content">
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="p2-sep">Source Separation: <span id="p2-sep-out" class="readout">10</span> units</label>
+            <input type="range" id="p2-sep" min="1" max="50" value="10">
+        </div>
+        <div class="control-group">
+            <label for="p2-lam">Wavelength: <span id="p2-lam-out" class="readout">5</span> units</label>
+            <input type="range" id="p2-lam" min="2" max="20" value="5">
+        </div>
+        <div class="control-group">
+            <label>Display Mode:</label>
+            <div class="quick-btns">
+                <button id="p2-btn-travel" class="active">Live Traveling</button>
+                <button id="p2-btn-frozen">Frozen Standing</button>
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: center; align-items: center; flex: 1;">
+        <canvas id="canvas2" width="200" height="200" style="width: 100%; max-width: 500px; height: auto; aspect-ratio: 1/1;"></canvas>
+    </div>
+</main>
+
+<main id="page3" class="tab-content">
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="p3-lam">Wavelength (lambda): <span id="p3-lam-out" class="readout">500</span> nm</label>
+            <input type="range" id="p3-lam" min="400" max="700" value="500">
+        </div>
+        <div class="control-group">
+            <label for="p3-d">Slit Separation (d): <span id="p3-d-out" class="readout">20</span> um</label>
+            <input type="range" id="p3-d" min="10" max="50" value="20">
+        </div>
+        <div class="control-group">
+            <label for="p3-a">Slit Width (a): <span id="p3-a-out" class="readout">4</span> um</label>
+            <input type="range" id="p3-a" min="1" max="10" value="4">
+        </div>
+        <div class="control-group">
+            <label>Configuration:</label>
+            <button id="p3-toggle" style="margin-top: 5px;">Block One Slit (Currently: Both Open)</button>
+        </div>
+    </div>
+    <div style="flex: 1; min-height: 300px; position: relative;">
+        <canvas id="canvas3"></canvas>
+    </div>
+    <div style="font-size: 0.9em; text-align: center;">
+        <span class="green-text">Accumulated Hits Histogram</span> | <span class="cyan-text">Theoretical Probability Curve</span>
+    </div>
+</main>
+
+<main id="page4" class="tab-content">
+    <div class="control-panel" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="control-group">
+            <label for="p4-lam">Wavelength (nm):</label>
+            <input type="number" id="p4-lam" value="532" step="1">
+        </div>
+        <div class="control-group">
+            <label for="p4-d">Slit Separation (um):</label>
+            <input type="number" id="p4-d" value="25" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="p4-a">Slit Width (um):</label>
+            <input type="number" id="p4-a" value="5" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="p4-l">Screen Dist L (m):</label>
+            <input type="number" id="p4-l" value="1.0" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="p4-pitch">Pixel Pitch (um):</label>
+            <input type="number" id="p4-pitch" value="10" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="p4-ratio">I2/I1 Ratio:</label>
+            <input type="number" id="p4-ratio" value="1.0" step="0.1" min="0">
+        </div>
+        <div class="control-group">
+            <label for="p4-gamma">Coherence gamma:</label>
+            <input type="number" id="p4-gamma" value="1.0" step="0.01" min="0" max="1">
+        </div>
+    </div>
+
+    <div id="p4-warning" class="warning">
+        WARNING: The small-angle assumption is degrading. Envelope angle (lambda/a) exceeds 10 degrees. Results may be inaccurate.
+    </div>
+
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-title">Fringe Spacing (Screen)</div>
+            <div class="formula">Delta-y = lambda * L / d</div>
+            <div class="result" id="c4-dy">...</div>
+            <div class="plugged" id="c4-dy-plug">...</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Angular Spacing</div>
+            <div class="formula">Delta-theta = lambda / d</div>
+            <div class="result" id="c4-dth">...</div>
+            <div class="plugged" id="c4-dth-plug">...</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Central Envelope</div>
+            <div class="formula">Half-width: y1 = lambda * L / a</div>
+            <div class="result" id="c4-y1">...</div>
+            <div class="plugged" id="c4-y1-plug">...</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Fringes in Central Lobe</div>
+            <div class="formula">N approx 2 * d / a</div>
+            <div class="result" id="c4-n">...</div>
+            <div class="plugged" id="c4-n-plug">...</div>
+        </div>
+        <div class="card">
+            <div class="card-title tooltip-container">
+                <span class="tooltip-trigger" onclick="toggleTooltip(this)">Fringe Visibility (Tap)</span>
+                <div class="tooltip-content">
+                    V = gamma * 2 * sqrt(r) / (1 + r)<br>
+                    where r = I2 / I1.<br>
+                    V=1 requires equal intensities and full coherence.
+                </div>
+            </div>
+            <div class="formula">V = gamma * 2 * sqrt(r) / (1 + r)</div>
+            <div class="result" id="c4-v">...</div>
+            <div class="plugged" id="c4-v-plug">...</div>
+        </div>
+        <div class="card">
+            <div class="card-title tooltip-container">
+                <span class="tooltip-trigger" onclick="toggleTooltip(this)">Resolvability (Tap)</span>
+                <div class="tooltip-content">
+                    pixels per fringe = Delta-y / pitch.<br>
+                    Aliased: &lt; 2<br>
+                    Marginal: 2 to 4<br>
+                    Resolved: &gt; 4
+                </div>
+            </div>
+            <div class="formula">Pixels/fringe = Delta-y / pitch</div>
+            <div class="result" id="c4-res">...</div>
+            <div class="plugged" id="c4-res-plug">...</div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // GLOBAL UTILS
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let globalTime = 0;
+
+    // TAB LOGIC
+    document.querySelectorAll('#tabs button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.target).classList.add('active');
+            resizeCanvases();
+        });
+    });
+
+    function resizeCanvases() {
+        const c1 = document.getElementById('canvas1');
+        const c3 = document.getElementById('canvas3');
+        if (c1.parentElement.clientWidth) {
+            c1.width = c1.parentElement.clientWidth;
+            c1.height = c1.parentElement.clientHeight;
+        }
+        if (c3.parentElement.clientWidth) {
+            c3.width = c3.parentElement.clientWidth;
+            c3.height = c3.parentElement.clientHeight;
+            resetP3();
+        }
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // PAGE 1 LOGIC
+    function updateP1() {
+        const phiDeg = parseFloat(document.getElementById('p1-phi').value);
+        document.getElementById('p1-phi-out').textContent = phiDeg;
+
+        const pathDiff = phiDeg / 360;
+        document.getElementById('p1-path').textContent = pathDiff.toFixed(2);
+
+        const phiRad = phiDeg * Math.PI / 180;
+        const amp = 2 * Math.cos(phiRad / 2);
+        const int = amp * amp;
+
+        document.getElementById('p1-amp').textContent = Math.abs(amp).toFixed(2);
+        document.getElementById('p1-int').textContent = int.toFixed(2);
+
+        let state = "Partial";
+        if (int > 3.9) state = "Constructive";
+        if (int < 0.1) state = "Destructive";
+        document.getElementById('p1-state').textContent = state;
+    }
+
+    document.getElementById('p1-phi').addEventListener('input', updateP1);
+
+    function drawP1() {
+        const c = document.getElementById('canvas1');
+        const ctx = c.getContext('2d');
+        if (!c.width) return;
+
+        ctx.clearRect(0, 0, c.width, c.height);
+
+        const cy = c.height / 2;
+        const amp = c.height / 5;
+        const k = 0.05;
+        const phiRad = parseFloat(document.getElementById('p1-phi').value) * Math.PI / 180;
+
+        // Draw grid/axis
+        ctx.strokeStyle = '#334466';
+        ctx.beginPath();
+        ctx.moveTo(0, cy);
+        ctx.lineTo(c.width, cy);
+        ctx.stroke();
+
+        ctx.lineWidth = 2;
+
+        // A (Cyan)
+        ctx.strokeStyle = '#00ffff';
+        ctx.beginPath();
+        for(let x=0; x<c.width; x+=2) {
+            let y = cy - amp * Math.sin(k*x - globalTime);
+            if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // B (Amber)
+        ctx.strokeStyle = '#ffaa00';
+        ctx.beginPath();
+        for(let x=0; x<c.width; x+=2) {
+            let y = cy - amp * Math.sin(k*x - globalTime + phiRad);
+            if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Sum (Green)
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        for(let x=0; x<c.width; x+=2) {
+            let valA = Math.sin(k*x - globalTime);
+            let valB = Math.sin(k*x - globalTime + phiRad);
+            let y = cy - amp * (valA + valB);
+            if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    // PAGE 2 LOGIC
+    let p2Mode = 'travel';
+    document.getElementById('p2-btn-travel').addEventListener('click', (e) => {
+        p2Mode = 'travel';
+        e.target.classList.add('active');
+        document.getElementById('p2-btn-frozen').classList.remove('active');
+    });
+    document.getElementById('p2-btn-frozen').addEventListener('click', (e) => {
+        p2Mode = 'frozen';
+        e.target.classList.add('active');
+        document.getElementById('p2-btn-travel').classList.remove('active');
+    });
+
+    document.getElementById('p2-sep').addEventListener('input', e => {
+        document.getElementById('p2-sep-out').textContent = e.target.value;
+    });
+    document.getElementById('p2-lam').addEventListener('input', e => {
+        document.getElementById('p2-lam-out').textContent = e.target.value;
+    });
+
+    const c2 = document.getElementById('canvas2');
+    const ctx2 = c2.getContext('2d');
+    const imgData = ctx2.createImageData(200, 200);
+
+    function drawP2() {
+        if (document.getElementById('page2').style.display === 'none' && !document.getElementById('page2').classList.contains('active')) return;
+
+        const sep = parseFloat(document.getElementById('p2-sep').value);
+        const lam = parseFloat(document.getElementById('p2-lam').value);
+        const k = 2 * Math.PI / lam;
+        const w = 200, h = 200;
+        const cx = w/2, cy = h/2;
+
+        let d = imgData.data;
+        let idx = 0;
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let dx1 = x - (cx - sep/2);
+                let dy1 = y - cy;
+                let dx2 = x - (cx + sep/2);
+                let dy2 = y - cy;
+
+                let r1 = Math.sqrt(dx1*dx1 + dy1*dy1);
+                let r2 = Math.sqrt(dx2*dx2 + dy2*dy2);
+
+                if (r1 < 0.1) r1 = 0.1;
+                if (r2 < 0.1) r2 = 0.1;
+
+                let A1 = 1 / Math.sqrt(r1);
+                let A2 = 1 / Math.sqrt(r2);
+
+                let rCol = 0, gCol = 0, bCol = 0;
+
+                if (p2Mode === 'frozen') {
+                    // True resultant amplitude
+                    let delta = k * (r1 - r2);
+                    let R = Math.sqrt(A1*A1 + A2*A2 + 2*A1*A2*Math.cos(delta));
+
+                    // map R to brightness. scale factor chosen for visibility
+                    let intensity = Math.min(255, R * 800);
+                    gCol = intensity;
+                    rCol = intensity * 0.2; // slight phosphor tint
+                } else {
+                    // Traveling waves
+                    let val = A1 * Math.sin(k*r1 - globalTime*2) + A2 * Math.sin(k*r2 - globalTime*2);
+                    let scaled = val * 800;
+                    if (scaled > 0) {
+                        gCol = Math.min(255, scaled);
+                    } else {
+                        bCol = Math.min(255, -scaled);
+                        gCol = bCol * 0.5; // cyan tint
+                    }
+                }
+
+                d[idx++] = rCol;
+                d[idx++] = gCol;
+                d[idx++] = bCol;
+                d[idx++] = 255;
+            }
+        }
+        ctx2.putImageData(imgData, 0, 0);
+    }
+
+
+    // PAGE 3 LOGIC
+    let p3Hits = [];
+    let p3Total = 0;
+    let p3Bins = 200;
+    let blockOneSlit = false;
+
+    function resetP3() {
+        p3Hits = new Array(p3Bins).fill(0);
+        p3Total = 0;
+        document.getElementById('p3-lam-out').textContent = document.getElementById('p3-lam').value;
+        document.getElementById('p3-d-out').textContent = document.getElementById('p3-d').value;
+        document.getElementById('p3-a-out').textContent = document.getElementById('p3-a').value;
+    }
+
+    ['p3-lam', 'p3-d', 'p3-a'].forEach(id => {
+        document.getElementById(id).addEventListener('input', resetP3);
+    });
+
+    document.getElementById('p3-toggle').addEventListener('click', (e) => {
+        blockOneSlit = !blockOneSlit;
+        e.target.textContent = blockOneSlit ? "Block One Slit (Currently: Single Open)" : "Block One Slit (Currently: Both Open)";
+        resetP3();
+    });
+
+    function getP3Intensity(u, lam, d, a) {
+        // u is sin(theta).
+        // scale a, d to nm
+        let a_nm = a * 1000;
+        let d_nm = d * 1000;
+
+        let beta = Math.PI * a_nm * u / lam;
+        let alpha = Math.PI * d_nm * u / lam;
+
+        let sinc = (beta === 0) ? 1 : Math.sin(beta) / beta;
+        let sinc2 = sinc * sinc;
+
+        if (blockOneSlit) return sinc2;
+        return sinc2 * Math.cos(alpha) * Math.cos(alpha);
+    }
+
+    function drawP3() {
+        const c = document.getElementById('canvas3');
+        const ctx = c.getContext('2d');
+        if (!c.width) return;
+
+        const lam = parseFloat(document.getElementById('p3-lam').value);
+        const d_sep = parseFloat(document.getElementById('p3-d').value);
+        const a_width = parseFloat(document.getElementById('p3-a').value);
+
+        // U range fixed to -0.2 to 0.2
+        const uMax = 0.2;
+
+        ctx.clearRect(0, 0, c.width, c.height);
+
+        // Simulation logic (run a few photons per frame)
+        let newHits = [];
+        for (let i=0; i<10; i++) {
+            let u_rand = (Math.random() * 2 - 1) * uMax;
+            let y_rand = Math.random();
+            let I = getP3Intensity(u_rand, lam, d_sep, a_width);
+            if (y_rand < I) {
+                let bin = Math.floor(((u_rand + uMax) / (2 * uMax)) * p3Bins);
+                if (bin >= 0 && bin < p3Bins) {
+                    p3Hits[bin]++;
+                    p3Total++;
+                    newHits.push(u_rand);
+                }
+            }
+        }
+
+        const cx = c.width / 2;
+        const cy = c.height;
+
+        // Draw faint paths for accepted photons
+        ctx.lineWidth = 1;
+        newHits.forEach(u => {
+            let screenX = cx + (u / uMax) * (c.width / 2);
+
+            if (!blockOneSlit) {
+                // Path from left slit
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(cx - 20, 0); // symbolic slit pos
+                ctx.lineTo(screenX, cy - 50); // screen pos
+                ctx.stroke();
+
+                // Path from right slit
+                ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(cx + 20, 0);
+                ctx.lineTo(screenX, cy - 50);
+                ctx.stroke();
+            } else {
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(cx, 0);
+                ctx.lineTo(screenX, cy - 50);
+                ctx.stroke();
+            }
+        });
+
+        // Draw Histogram
+        let maxHist = Math.max(...p3Hits, 1);
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+        let binW = c.width / p3Bins;
+        for (let i=0; i<p3Bins; i++) {
+            let h = (p3Hits[i] / maxHist) * (c.height - 60);
+            ctx.fillRect(i * binW, cy - 50 - h, binW + 0.5, h);
+        }
+
+        // Draw Theory Curve
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i=0; i<=p3Bins; i++) {
+            let u = -uMax + (i / p3Bins) * (2 * uMax);
+            let I = getP3Intensity(u, lam, d_sep, a_width);
+            let px = i * binW;
+            let py = cy - 50 - I * (c.height - 60);
+            if (i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // Base line
+        ctx.strokeStyle = '#334466';
+        ctx.beginPath();
+        ctx.moveTo(0, cy - 50);
+        ctx.lineTo(c.width, cy - 50);
+        ctx.stroke();
+    }
+
+
+    // PAGE 4 LOGIC
+    function formatSI(meters) {
+        if (meters >= 1) return meters.toFixed(3) + ' m';
+        if (meters >= 1e-3) return (meters * 1e3).toFixed(3) + ' mm';
+        if (meters >= 1e-6) return (meters * 1e6).toFixed(3) + ' um';
+        return (meters * 1e9).toFixed(3) + ' nm';
+    }
+
+    function calcPage4() {
+        const lam_nm = parseFloat(document.getElementById('p4-lam').value) || 532;
+        const d_um = parseFloat(document.getElementById('p4-d').value) || 25;
+        const a_um = parseFloat(document.getElementById('p4-a').value) || 5;
+        const L_m = parseFloat(document.getElementById('p4-l').value) || 1.0;
+        const pitch_um = parseFloat(document.getElementById('p4-pitch').value) || 10;
+        const ratio = parseFloat(document.getElementById('p4-ratio').value) || 1;
+        const gamma = parseFloat(document.getElementById('p4-gamma').value) || 1;
+
+        const lam = lam_nm * 1e-9;
+        const d = d_um * 1e-6;
+        const a = a_um * 1e-6;
+        const pitch = pitch_um * 1e-6;
+
+        // Warning
+        const smallAngleApprox = lam / a; // radians approx
+        const tenDegInRad = 10 * Math.PI / 180;
+        if (smallAngleApprox > tenDegInRad) {
+            document.getElementById('p4-warning').style.display = 'block';
+        } else {
+            document.getElementById('p4-warning').style.display = 'none';
+        }
+
+        // Delta-y
+        const dy = lam * L_m / d;
+        document.getElementById('c4-dy').textContent = formatSI(dy);
+        document.getElementById('c4-dy-plug').textContent = `[(${lam_nm}e-9 * ${L_m}) / ${d_um}e-6]`;
+
+        // Delta-theta
+        const dth = lam / d; // rad
+        const dth_mrad = dth * 1000;
+        const dth_deg = dth * 180 / Math.PI;
+        const dth_arcmin = dth_deg * 60;
+        document.getElementById('c4-dth').textContent = `${dth_mrad.toFixed(2)} mrad`;
+        document.getElementById('c4-dth-plug').textContent = `${dth_deg.toFixed(3)} deg | ${dth_arcmin.toFixed(2)} arcmin`;
+
+        // Central Envelope
+        const y1 = lam * L_m / a;
+        document.getElementById('c4-y1').textContent = formatSI(y1) + " (Half)";
+        document.getElementById('c4-y1-plug').textContent = `Full lobe (2*y1): ${formatSI(2 * y1)}`;
+
+        // Fringes N
+        const n_approx = 2 * d / a;
+        const n_exact = Math.floor(2 * y1 / dy);
+        document.getElementById('c4-n').textContent = Math.round(n_approx).toString();
+        document.getElementById('c4-n-plug').textContent = `Approx: ${n_approx.toFixed(2)} | Exact strictly inside: ${n_exact}`;
+
+        // Visibility
+        const V = gamma * 2 * Math.sqrt(ratio) / (1 + ratio);
+        document.getElementById('c4-v').textContent = V.toFixed(4);
+        document.getElementById('c4-v-plug').textContent = `gamma=${gamma}, I2/I1=${ratio}`;
+
+        // Resolvability
+        const pixPerFringe = dy / pitch;
+        let pillClass = 'resolved';
+        let text = 'Resolved';
+        if (pixPerFringe < 2) { pillClass = 'aliased'; text = 'Aliased (<2)'; }
+        else if (pixPerFringe <= 4) { pillClass = 'marginal'; text = 'Marginal (2 to 4)'; }
+
+        document.getElementById('c4-res').innerHTML = `${pixPerFringe.toFixed(2)} px <span class="pill ${pillClass}">${text}</span>`;
+        document.getElementById('c4-res-plug').textContent = `dy=${formatSI(dy)} / pitch=${pitch_um}um`;
+    }
+
+    ['p4-lam', 'p4-d', 'p4-a', 'p4-l', 'p4-pitch', 'p4-ratio', 'p4-gamma'].forEach(id => {
+        document.getElementById(id).addEventListener('input', calcPage4);
+    });
+
+    function toggleTooltip(el) {
+        const content = el.nextElementSibling;
+        content.classList.toggle('active');
+    }
+
+    // MAIN LOOP
+    function animate() {
+        if (!prefersReducedMotion.matches) {
+            globalTime += 0.05;
+        }
+
+        const p1Active = document.getElementById('page1').classList.contains('active');
+        const p2Active = document.getElementById('page2').classList.contains('active');
+        const p3Active = document.getElementById('page3').classList.contains('active');
+
+        if (p1Active) drawP1();
+        if (p2Active) drawP2();
+        if (p3Active) drawP3();
+
+        requestAnimationFrame(animate);
+    }
+
+    // INIT
+    resizeCanvases();
+    updateP1();
+    resetP3();
+    calcPage4();
+    animate();
+
+    // Close tooltips if clicked outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('tooltip-trigger')) {
+            document.querySelectorAll('.tooltip-content').forEach(tt => tt.classList.remove('active'));
+        }
+    });
+
+</script>
+</body>
+</html>
